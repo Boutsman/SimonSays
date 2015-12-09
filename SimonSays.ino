@@ -2,7 +2,10 @@
  * Simon says
  *
  * @author Stijn Boutsen
- * @version 0.1
+ * @ author Stef Wynants
+ * @author Robin Fripon
+ * @author Jeroen Timmermans
+ * @version 1.0
  * @link Boutsman.be
  *
  * This program was written for a demo-module for the Institute of material research.
@@ -15,15 +18,48 @@
  *
  */
 
+#include <CapacitiveSensor.h>
+#define SENDPIN 13
+#define READPIN0 2  //Pin for btn1
+#define READPIN1 3  //Pin for btn2
+#define READPIN2 4  //Pin for btn3
+#define READPIN3 5  //Pin for btn4
+#define INTPIN0 10  //Pin for btn1
+#define INTPIN1 11  //Pin for btn2
+#define INTPIN2 12  //Pin for btn3
+#define INTPIN3 13  //Pin for btn4
+#define INTPIN4 14  //Pin for btn4
+
+//Capacitive pushbuttons
+CapacitiveSensor   cs_2_0 = CapacitiveSensor(SENDPIN,READPIN0);        // 800K resistor between pins 4 & 2, pin 2 is sensor pin, add a wire and or foil if desired
+CapacitiveSensor   cs_2_1 = CapacitiveSensor(SENDPIN,READPIN1);
+CapacitiveSensor   cs_2_2 = CapacitiveSensor(SENDPIN,READPIN2);
+CapacitiveSensor   cs_2_3 = CapacitiveSensor(SENDPIN,READPIN3);
+
+
+//Capacitive intensity sensor/capacitive slider
+CapacitiveSensor   cs_4_0 = CapacitiveSensor(4,2);
+CapacitiveSensor   cs_4_1 = CapacitiveSensor(4,3);
+CapacitiveSensor   cs_4_2 = CapacitiveSensor(4,5);
+CapacitiveSensor   cs_4_3 = CapacitiveSensor(4,7);
+CapacitiveSensor   cs_4_4 = CapacitiveSensor(4,8);
+
+int sensitivity = 5;
+
 const int Treshold = 40;
+
 int storedArray[100];
-int adresInputwaarde = 0;
-int turn = 0;
 int mini = 1;
 int maxi = 5;
+int adresInputwaarde = 0;
+int turn = 0;
+//Used for debouncing
 int buttonState[4] = {0, 0, 0, 0};
 int lastButtonState[4] = {0, 0, 0, 0};
+//Next state for the FSM
 int newState = 0;
+//Interval to blink the leds
+int period = 500;
 
 void setup() {
   //Define digital pins as inputs
@@ -37,10 +73,10 @@ void setup() {
   pinMode(9, OUTPUT);
 
   //Use autocallibration on capacitive sensors
-  //  cs_2_0.set_CS_AutocaL_Millis(0xFFFFFFFF);
-  //  cs_2_1.set_CS_AutocaL_Millis(0xFFFFFFFF);
-  //  cs_2_2.set_CS_AutocaL_Millis(0xFFFFFFFF);
-  //  cs_2_3.set_CS_AutocaL_Millis(0xFFFFFFFF);
+  cs_2_0.set_CS_AutocaL_Millis(0xFFFFFFFF);
+  cs_2_1.set_CS_AutocaL_Millis(0xFFFFFFFF);
+  cs_2_2.set_CS_AutocaL_Millis(0xFFFFFFFF);
+  cs_2_3.set_CS_AutocaL_Millis(0xFFFFFFFF);
 
   //Use randomSeed to be sure that you generate random numbers
   randomSeed(analogRead(0));
@@ -66,10 +102,6 @@ void showArray() {
 }
 
 void loop() {
-  debounce(2);
-  debounce(3);
-  debounce(4);
-  debounce(5);
   fsm(newState);
 }
 
@@ -80,6 +112,7 @@ void setupGame() {
   showArray();
   turn = 1;
   adresInputwaarde = 0;
+  startUp();
 }
 
 /*
@@ -97,9 +130,9 @@ int filter(int val) {
     return 0;
   }
   //Return 2 if the value is in the "don't care" range
-  else {
+  /*else {
     return 2;
-  }
+  }*/
 }
 
 /*
@@ -145,20 +178,21 @@ void showSequence(int n) {
     Serial.println(turn);
     Serial.print( "val = ");
     Serial.println(storedArray[i]);
-
+    blinkLed(storedArray[i]+5);
   }
 }
 
 void readUserIpunt() {
-  debounce(2);
-  debounce(3);
-  debounce(4);
-  debounce(5);
+  debounce(2,filter(cs_2_0.capacitiveSensor(30)));
+  debounce(3,filter(cs_2_1.capacitiveSensor(30)));
+  debounce(4,filter(cs_2_2.capacitiveSensor(30)));
+  debounce(5,filter(cs_2_3.capacitiveSensor(30)));
 }
 
-void debounce(int buttonPin) {
+void debounce(int buttonPin, int val) {
   // read the pushbutton input pin:
-  buttonState[buttonPin - 2] = digitalRead(buttonPin);
+  //buttonState[buttonPin - 2] = digitalRead(buttonPin);
+  buttonState[buttonPin - 2] = val;
 
   // compare the buttonState to its previous state
   if (buttonState[buttonPin - 2] != lastButtonState[buttonPin - 2]) {
@@ -175,6 +209,7 @@ void debounce(int buttonPin) {
         Serial.print(buttonPin - 1);
         Serial.print(" ");
         Serial.println("SUCCES!!!");
+        succes();
       }
       else if (storedArray[adresInputwaarde] == buttonPin - 1 && adresInputwaarde != turn - 1) {
         adresInputwaarde++;
@@ -192,6 +227,7 @@ void debounce(int buttonPin) {
         Serial.print(buttonPin - 1);
         Serial.print(" ");
         Serial.println("FOUT");
+        fout();
       }
     } else {
       // if the current state is LOW then the button
@@ -204,5 +240,118 @@ void debounce(int buttonPin) {
   // save the current state as the last state,
   //for next time through the loop
   lastButtonState[buttonPin - 2] = buttonState[buttonPin - 2];
+}
 
+void setIntensity()                    
+{
+    long start = millis();
+    long sensor1 =  cs_4_0.capacitiveSensor(30);
+    long sensor2 =  cs_4_1.capacitiveSensor(30);
+    long sensor3 =  cs_4_2.capacitiveSensor(30);
+    long sensor4 =  cs_4_3.capacitiveSensor(30);
+    long sensor5 =  cs_4_4.capacitiveSensor(30);
+    
+    if (sensor1 > (sensor2 + 100)) 
+    {
+      sensitivity = 1;
+    } 
+    else if (sensor1 > 100 && sensor2 > 100)
+    {
+      sensitivity = 2;
+    }
+    else if (sensor2 > (sensor1 + 100) && sensor2 > (sensor3 + 100))
+    {
+      sensitivity = 3;
+    }
+    else if (sensor2 > 100 && sensor3 > 100)
+    {
+      sensitivity = 4;
+    }
+    else if (sensor3 > (sensor2 + 100) && sensor3 > (sensor4 + 100))
+    {
+      sensitivity = 5;
+    }
+    else if (sensor3 > 100 && sensor4 > 100)
+    {
+      sensitivity = 6;
+    }
+    else if (sensor4 > (sensor3 + 100) && sensor4 > (sensor5 + 100))
+    {
+      sensitivity = 7;
+    }
+    else if (sensor4 > 100 && sensor5 > 100)
+    {
+      sensitivity = 8;
+    }
+    else if (sensor5 > (sensor4 + 100))
+    {
+      sensitivity = 9;
+    }
+}
+
+/*
+ * LED-SEQUENCES AND ANIMATIONS
+ */
+
+void blinkLed(int ledPin){
+  digitalWrite(ledPin, HIGH);
+  delay(period);
+  digitalWrite(ledPin, LOW);
+  delay(period);
+}
+
+void startUp(){
+  digitalWrite(6, HIGH);
+  delay(period);
+  digitalWrite(7, HIGH);
+  delay(period);
+  digitalWrite(8, HIGH);
+  delay(period);
+  digitalWrite(9, HIGH);
+  delay(period);
+  digitalWrite(6, LOW);
+  delay(period);
+  digitalWrite(7, LOW);
+  delay(period);
+  digitalWrite(8, LOW);
+  delay(period);
+  digitalWrite(9, LOW);
+  delay(period);
+}
+
+void succes(){
+  digitalWrite(6, HIGH);
+  delay(period);
+  digitalWrite(7, HIGH);
+  delay(period);
+  digitalWrite(8, HIGH);
+  delay(period);
+  digitalWrite(9, HIGH);
+  delay(period*4);
+  digitalWrite(6, LOW);
+  digitalWrite(7, LOW);
+  digitalWrite(8, LOW);
+  digitalWrite(9, LOW);
+}
+
+void fout(){
+  digitalWrite(6, HIGH);
+  digitalWrite(7, HIGH);
+  digitalWrite(8, HIGH);
+  digitalWrite(9, HIGH);
+  delay(period);
+  digitalWrite(6, LOW);
+  digitalWrite(7, LOW);
+  digitalWrite(8, LOW);
+  digitalWrite(9, LOW);
+  delay(period);
+  digitalWrite(6, HIGH);
+  digitalWrite(7, HIGH);
+  digitalWrite(8, HIGH);
+  digitalWrite(9, HIGH);
+  delay(period);
+  digitalWrite(6, LOW);
+  digitalWrite(7, LOW);
+  digitalWrite(8, LOW);
+  digitalWrite(9, LOW);
 }
