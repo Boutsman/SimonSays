@@ -88,7 +88,7 @@ void loop()
     Serial.print("\t");
     Serial.print(sensor5);                  // print sensor output 5
     Serial.print("\t");
-    Serial.print(value);                    // print value                  
+    Serial.print(sensitivity );                    // print value                  
     Serial.print("\t");
     Serial.print(valueBar);                 // print valueBar
     Serial.print("\n");
