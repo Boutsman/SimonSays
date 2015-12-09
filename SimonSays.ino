@@ -15,155 +15,194 @@
  *
  */
 
-#define SEND_PIN 12
-#define RECEIVE_PIN_1 2
-#define RECEIVE_PIN_2 3
-#define RECEIVE_PIN_3 4
-#define RECEIVE_PIN_4 5
-
+const int Treshold = 40;
 int storedArray[100];
 int adresInputwaarde = 0;
-int val[4] = {0,0,0,0};
-int lastVal[4] = {0,0,0,0};
 int turn = 0;
 int mini = 1;
 int maxi = 5;
-int lastButtonState = 0;
+int buttonState[4] = {0, 0, 0, 0};
+int lastButtonState[4] = {0, 0, 0, 0};
+int newState = 0;
 
 void setup() {
-  pinMode(2,INPUT);
-  pinMode(3,INPUT);
-  pinMode(4,INPUT);
-  pinMode(5,INPUT);
+  //Define digital pins as inputs
+  pinMode(2, INPUT);
+  pinMode(3, INPUT);
+  pinMode(4, INPUT);
+  pinMode(5, INPUT);
+  pinMode(6, OUTPUT);
+  pinMode(7, OUTPUT);
+  pinMode(8, OUTPUT);
+  pinMode(9, OUTPUT);
+
+  //Use autocallibration on capacitive sensors
+  //  cs_2_0.set_CS_AutocaL_Millis(0xFFFFFFFF);
+  //  cs_2_1.set_CS_AutocaL_Millis(0xFFFFFFFF);
+  //  cs_2_2.set_CS_AutocaL_Millis(0xFFFFFFFF);
+  //  cs_2_3.set_CS_AutocaL_Millis(0xFFFFFFFF);
+
+  //Use randomSeed to be sure that you generate random numbers
   randomSeed(analogRead(0));
-  Serial.begin(9600);
 
-  setupGame();
-
-  //storedArray[0] = random(mini, maxi);
-  delay(1000);
-}
-
-void setupGame(){
-    //Generate a random array
-    genData();
-    //Display the generated array
-    showArray();
-}
-
-void loop() {
-  //showArray();
-  //extendArray();
-  //delay(1000);
-
-  readBtn(2, 0);
-  readBtn(3, 1);
-  readBtn(4, 2);
-  readBtn(5, 3);
-}
-
-//Add an element to the array
-void extendArray() {
-  turn++;
-  storedArray[turn] = random(mini, maxi);
-}
-
-//Display the array
-void showArray() {
-  for (int i = 0; i <= 19; i++)  {
-    Serial.print(storedArray[i]);
-    Serial.print(" ");
-  }
-  Serial.println();
-  Serial.print( "turn = ");
-  Serial.println(turn);
-}
-
-void readBtn(int pin, int n)
-{
-  //Digital Values 1
-  val[n] = digitalRead(pin);
-
-  if (val[n] == 1) {
-    if (lastVal[n] == 0) {
-      if (storedArray[turn] == pin - 1)
-      {
-        Serial.print(turn);
-        Serial.print( " ");
-        Serial.println(pin);
-      }
-      else
-      {
-        Serial.println("fout");
-      }
-    }
-  }
-  else if (val[n] == 0) {
-    if (lastVal[n] == 1) {
-      turn = turn+1;
-    }
-  }
-  lastVal[n] = val[n];
+  //Initiate the serial port
+  Serial.begin(115200);
 }
 
 //Generate a random array
 void genData() {
-  storedArray[0] = random(mini, maxi);
-  storedArray[1] = random(mini, maxi);
-  storedArray[2] = random(mini, maxi);
-  storedArray[3] = random(mini, maxi);
-  storedArray[4] = random(mini, maxi);
-  storedArray[5] = random(mini, maxi);
-  storedArray[6] = random(mini, maxi);
-  storedArray[7] = random(mini, maxi);
-  storedArray[8] = random(mini, maxi);
-  storedArray[9] = random(mini, maxi);
-  storedArray[10] = random(mini, maxi);
-  storedArray[11] = random(mini, maxi);
-  storedArray[12] = random(mini, maxi);
-  storedArray[13] = random(mini, maxi);
-  storedArray[14] = random(mini, maxi);
-  storedArray[15] = random(mini, maxi);
-  storedArray[16] = random(mini, maxi);
-  storedArray[17] = random(mini, maxi);
-  storedArray[18] = random(mini, maxi);
-  storedArray[19] = random(mini, maxi);
+  for (int i = 0; i <= 99; i++) {
+    storedArray[i] = random(mini, maxi);
+  }
 }
 
-//Use debounce if needed
+//Display the array
+void showArray() {
+  for (int i = 0; i <= 99; i++)  {
+    Serial.print(storedArray[i]);
+    Serial.print(" ");
+  }
+  Serial.println();
+}
+
+void loop() {
+  debounce(2);
+  debounce(3);
+  debounce(4);
+  debounce(5);
+  fsm(newState);
+}
+
+void setupGame() {
+  //Generate a random array
+  genData();
+  //Display the generated array
+  showArray();
+  turn = 1;
+  adresInputwaarde = 0;
+}
+
+/*
+ * This function turns the capacitive values into an integer
+ * @ param integer The raw value of the capacitive sensor
+ * @ return an integer value corresponding to a certain state
+ */
+int filter(int val) {
+  //Return 1 if the value is higher the the treshold.
+  if (val > Treshold + 10) {
+    return 1;
+  }
+  //Return 0 if the value is too low
+  else if (val < Treshold - 10) {
+    return 0;
+  }
+  //Return 2 if the value is in the "don't care" range
+  else {
+    return 2;
+  }
+}
+
+/*
+ * This function act as a state machine with 3 states.
+ */
+void fsm(int state) {
+  switch (state) {
+    case 0:
+      //Run the funtion to start the game.
+      Serial.println("Start game");
+      setupGame();
+      newState = 1;
+      delay(1000);
+      break;
+    case 1:
+      Serial.println("Case 1");
+      //Toon n aantal posities
+      showSequence(turn);
+      newState = 2;
+      break;
+    case 2:
+      //vergelijk userinput met randomSequence
+      readUserIpunt();
+      break;
+    case 3:
+      Serial.println("Case 3");
+      //vergelijk userinput met randomSequence
+      newState = 3;
+      break;
+    default:
+      // if nothing else matches, do the default
+      // default is optional
+      newState = 0;
+      break;
+  }
+}
+
+void showSequence(int n) {
+  for (int i = 0; i < n; i++) {
+    Serial.println();
+    delay(1000);
+    Serial.print( "turn = ");
+    Serial.println(turn);
+    Serial.print( "val = ");
+    Serial.println(storedArray[i]);
+
+  }
+}
+
+void readUserIpunt() {
+  debounce(2);
+  debounce(3);
+  debounce(4);
+  debounce(5);
+}
+
 void debounce(int buttonPin) {
-  // read the state of the switch into a local variable:
-  int reading = digitalRead(buttonPin);
+  // read the pushbutton input pin:
+  buttonState[buttonPin - 2] = digitalRead(buttonPin);
 
-  // check to see if you just pressed the button
-  // (i.e. the input went from LOW to HIGH),  and you've waited
-  // long enough since the last press to ignore any noise:
-
-  // If the switch changed, due to noise or pressing:
-  if (reading != lastButtonState) {
-    // reset the debouncing timer
-    lastDebounceTime = millis();
-  }
-
-  if ((millis() - lastDebounceTime) > debounceDelay) {
-    // whatever the reading is at, it's been there for longer
-    // than the debounce delay, so take it as the actual current state:
-
-    // if the button state has changed:
-    if (reading != buttonState) {
-      buttonState = reading;
-
-      // only toggle the LED if the new button state is HIGH
-      if (buttonState == HIGH) {
-        Serial.println(buttonPin-1)
+  // compare the buttonState to its previous state
+  if (buttonState[buttonPin - 2] != lastButtonState[buttonPin - 2]) {
+    // if the state has changed, do something
+    if (buttonState[buttonPin - 2] == HIGH) {
+      // if the current state is HIGH then the button
+      // went from off to on:
+      if (storedArray[adresInputwaarde] == buttonPin - 1 && adresInputwaarde == turn - 1) {
+        adresInputwaarde = 0;
+        turn++;
+        newState = 1;
+        Serial.print(storedArray[adresInputwaarde]);
+        Serial.print(" ");
+        Serial.print(buttonPin - 1);
+        Serial.print(" ");
+        Serial.println("SUCCES!!!");
       }
+      else if (storedArray[adresInputwaarde] == buttonPin - 1 && adresInputwaarde != turn - 1) {
+        adresInputwaarde++;
+        newState = 2;
+        Serial.print(storedArray[adresInputwaarde]);
+        Serial.print(" ");
+        Serial.print(buttonPin - 1);
+        Serial.print(" ");
+        Serial.println("GOED");
+      }
+      else {
+        newState = 0;
+        Serial.print(storedArray[adresInputwaarde]);
+        Serial.print(" ");
+        Serial.print(buttonPin - 1);
+        Serial.print(" ");
+        Serial.println("FOUT");
+      }
+    } else {
+      // if the current state is LOW then the button
+      // wend from on to off:
+      //Serial.println("off");
     }
+    // Delay a little bit to avoid bouncing
+    delay(20);
   }
+  // save the current state as the last state,
+  //for next time through the loop
+  lastButtonState[buttonPin - 2] = buttonState[buttonPin - 2];
 
-  // set the LED:
-  digitalWrite(ledPin, ledState);
-
-  // save the reading.  Next time through the loop,
-  // it'll be the lastButtonState:
-  lastButtonState = reading;
 }
