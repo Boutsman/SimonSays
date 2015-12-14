@@ -5,7 +5,7 @@
  * @ author Stef Wynants
  * @author Robin Fripon
  * @author Jeroen Timmermans
- * @version 1.0
+ * @version 1.1
  * @link Boutsman.be
  *
  * This program was written for a demo-module for the Institute of material research.
@@ -24,34 +24,47 @@
 #define READPIN1 3  //Pin for btn2
 #define READPIN2 4  //Pin for btn3
 #define READPIN3 5  //Pin for btn4
-#define INTPIN0 10  //Pin for btn1
-#define INTPIN1 11  //Pin for btn2
-#define INTPIN2 12  //Pin for btn3
-#define INTPIN3 13  //Pin for btn4
-#define INTPIN4 14  //Pin for btn4
+
+#define INTPIN0 10  //Pin for slider btn1
+#define INTPIN1 11  //Pin for slider btn2
+#define INTPIN2 12  //Pin for slider btn3
+#define INTPIN3 13  //Pin for slider btn4
+#define INTPIN4 14  //Pin for slider btn5
+
+#define LEDPIN0 6  //Pin for LED1
+#define LEDPIN1 7  //Pin for LED2
+#define LEDPIN2 8  //Pin for LED3
+#define LEDPIN3 9  //Pin for LED4
 
 //Capacitive pushbuttons
-CapacitiveSensor   cs_2_0 = CapacitiveSensor(SENDPIN,READPIN0);        // 800K resistor between pins 4 & 2, pin 2 is sensor pin, add a wire and or foil if desired
-CapacitiveSensor   cs_2_1 = CapacitiveSensor(SENDPIN,READPIN1);
-CapacitiveSensor   cs_2_2 = CapacitiveSensor(SENDPIN,READPIN2);
-CapacitiveSensor   cs_2_3 = CapacitiveSensor(SENDPIN,READPIN3);
-
+CapacitiveSensor   cs_2_0 = CapacitiveSensor(SENDPIN, READPIN0);       // 800K resistor between pins 13 & 2, pin 2 is sensor pin, add a wire and or foil if desired
+CapacitiveSensor   cs_2_1 = CapacitiveSensor(SENDPIN, READPIN1);
+CapacitiveSensor   cs_2_2 = CapacitiveSensor(SENDPIN, READPIN2);
+CapacitiveSensor   cs_2_3 = CapacitiveSensor(SENDPIN, READPIN3);
 
 //Capacitive intensity sensor/capacitive slider
-CapacitiveSensor   cs_4_0 = CapacitiveSensor(4,2);
-CapacitiveSensor   cs_4_1 = CapacitiveSensor(4,3);
-CapacitiveSensor   cs_4_2 = CapacitiveSensor(4,5);
-CapacitiveSensor   cs_4_3 = CapacitiveSensor(4,7);
-CapacitiveSensor   cs_4_4 = CapacitiveSensor(4,8);
+CapacitiveSensor   cs_4_0 = CapacitiveSensor(SENDPIN, INTPIN0);
+CapacitiveSensor   cs_4_1 = CapacitiveSensor(SENDPIN, INTPIN1);
+CapacitiveSensor   cs_4_2 = CapacitiveSensor(SENDPIN, INTPIN2);
+CapacitiveSensor   cs_4_3 = CapacitiveSensor(SENDPIN, INTPIN3);
+CapacitiveSensor   cs_4_4 = CapacitiveSensor(SENDPIN, INTPIN4);
 
 int sensitivity = 5;
 
-const int Treshold = 40;
+//Treshold for the capacitive intensity sensor
+const int intTreshold = 100;
+//Treshold for the capacitive pushbutons
+const int Treshold = 200;
 
+//Array to store random numbers between 1 and 4
 int storedArray[100];
+//Define the lowest number to be generated (inclusive)
 int mini = 1;
+//Define which number is the highest (exclusive)
 int maxi = 5;
-int adresInputwaarde = 0;
+//Integer used to cycle through the stored array
+int adresInputVal = 0;
+//Integer used to keep track of the round
 int turn = 0;
 //Used for debouncing
 int buttonState[4] = {0, 0, 0, 0};
@@ -62,15 +75,16 @@ int newState = 0;
 int period = 500;
 
 void setup() {
-  //Define digital pins as inputs
+  //Define digital pins for capacitive buttons as inputs
   pinMode(2, INPUT);
   pinMode(3, INPUT);
   pinMode(4, INPUT);
   pinMode(5, INPUT);
-  pinMode(6, OUTPUT);
-  pinMode(7, OUTPUT);
-  pinMode(8, OUTPUT);
-  pinMode(9, OUTPUT);
+  //Define digital pins for LEDs as outputs
+  pinMode(LEDPIN0, OUTPUT);
+  pinMode(LEDPIN1, OUTPUT);
+  pinMode(LEDPIN2, OUTPUT);
+  pinMode(LEDPIN3, OUTPUT);
 
   //Use autocallibration on capacitive sensors
   cs_2_0.set_CS_AutocaL_Millis(0xFFFFFFFF);
@@ -92,7 +106,7 @@ void genData() {
   }
 }
 
-//Display the array
+//Display the stored array
 void showArray() {
   for (int i = 0; i <= 99; i++)  {
     Serial.print(storedArray[i]);
@@ -101,17 +115,29 @@ void showArray() {
   Serial.println();
 }
 
+/*
+ * Start the finite state machine
+ * @param Integer the state to where the program has to go
+ */
 void loop() {
+  //Set the intensity of the LEDs
+  //***setIntensity();
+  //State the FSM
+  //Define the New State
   fsm(newState);
 }
 
+//Ready the device to start playing a new game
 void setupGame() {
   //Generate a random array
   genData();
   //Display the generated array
   showArray();
+  //A new game always starts on the first turn
   turn = 1;
-  adresInputwaarde = 0;
+  //This is an extra integer used as an index to cycle through the stored array
+  adresInputVal = 0;
+  //Run the startUp LED sequence
   startUp();
 }
 
@@ -136,31 +162,27 @@ int filter(int val) {
 }
 
 /*
- * This function act as a state machine with 3 states.
+ * This function acts as a state machine
  */
 void fsm(int state) {
   switch (state) {
     case 0:
-      //Run the funtion to start the game.
+      //State to start/restart the game.
       Serial.println("Start game");
       setupGame();
       newState = 1;
       delay(1000);
       break;
     case 1:
+      //State to show the stored sequence
       Serial.println("Case 1");
-      //Toon n aantal posities
       showSequence(turn);
       newState = 2;
       break;
     case 2:
-      //vergelijk userinput met randomSequence
+      //State to check userinput with the stored array
+      Serial.println("Case 2");
       readUserIpunt();
-      break;
-    case 3:
-      Serial.println("Case 3");
-      //vergelijk userinput met randomSequence
-      newState = 3;
       break;
     default:
       // if nothing else matches, do the default
@@ -178,15 +200,15 @@ void showSequence(int n) {
     Serial.println(turn);
     Serial.print( "val = ");
     Serial.println(storedArray[i]);
-    blinkLed(storedArray[i]+5);
+    blinkLed(storedArray[i] + 5);
   }
 }
 
 void readUserIpunt() {
-  debounce(2,filter(cs_2_0.capacitiveSensor(30)));
-  debounce(3,filter(cs_2_1.capacitiveSensor(30)));
-  debounce(4,filter(cs_2_2.capacitiveSensor(30)));
-  debounce(5,filter(cs_2_3.capacitiveSensor(30)));
+  debounce(2, filter(cs_2_0.capacitiveSensor(30)));
+  debounce(3, filter(cs_2_1.capacitiveSensor(30)));
+  debounce(4, filter(cs_2_2.capacitiveSensor(30)));
+  debounce(5, filter(cs_2_3.capacitiveSensor(30)));
 }
 
 void debounce(int buttonPin, int val) {
@@ -200,21 +222,23 @@ void debounce(int buttonPin, int val) {
     if (buttonState[buttonPin - 2] == HIGH) {
       // if the current state is HIGH then the button
       // went from off to on:
-      if (storedArray[adresInputwaarde] == buttonPin - 1 && adresInputwaarde == turn - 1) {
-        adresInputwaarde = 0;
+      if (storedArray[adresInputVal] == buttonPin - 1 && adresInputVal == turn - 1) {
+        adresInputVal = 0;
         turn++;
         newState = 1;
-        Serial.print(storedArray[adresInputwaarde]);
+        blinkLed(buttonPin+4);
+        Serial.print(storedArray[adresInputVal]);
         Serial.print(" ");
         Serial.print(buttonPin - 1);
         Serial.print(" ");
         Serial.println("SUCCES!!!");
         succes();
       }
-      else if (storedArray[adresInputwaarde] == buttonPin - 1 && adresInputwaarde != turn - 1) {
-        adresInputwaarde++;
+      else if (storedArray[adresInputVal] == buttonPin - 1 && adresInputVal != turn - 1) {
+        adresInputVal++;
         newState = 2;
-        Serial.print(storedArray[adresInputwaarde]);
+        blinkLed(buttonPin+4);
+        Serial.print(storedArray[adresInputVal]);
         Serial.print(" ");
         Serial.print(buttonPin - 1);
         Serial.print(" ");
@@ -222,7 +246,8 @@ void debounce(int buttonPin, int val) {
       }
       else {
         newState = 0;
-        Serial.print(storedArray[adresInputwaarde]);
+        blinkLed(buttonPin+4);
+        Serial.print(storedArray[adresInputVal]);
         Serial.print(" ");
         Serial.print(buttonPin - 1);
         Serial.print(" ");
@@ -235,79 +260,84 @@ void debounce(int buttonPin, int val) {
       //Serial.println("off");
     }
     // Delay a little bit to avoid bouncing
-    delay(20);
+    delay(30);
   }
   // save the current state as the last state,
   //for next time through the loop
   lastButtonState[buttonPin - 2] = buttonState[buttonPin - 2];
 }
 
-void setIntensity()                    
+/*
+ * INTENSITY SENSOR/CAPACITIVE SLIDER
+ */
+
+void setIntensity()
 {
-    long start = millis();
-    long sensor1 =  cs_4_0.capacitiveSensor(30);
-    long sensor2 =  cs_4_1.capacitiveSensor(30);
-    long sensor3 =  cs_4_2.capacitiveSensor(30);
-    long sensor4 =  cs_4_3.capacitiveSensor(30);
-    long sensor5 =  cs_4_4.capacitiveSensor(30);
-    
-    if (sensor1 > (sensor2 + 100)) 
-    {
-      sensitivity = 1;
-    } 
-    else if (sensor1 > 100 && sensor2 > 100)
-    {
-      sensitivity = 2;
-    }
-    else if (sensor2 > (sensor1 + 100) && sensor2 > (sensor3 + 100))
-    {
-      sensitivity = 3;
-    }
-    else if (sensor2 > 100 && sensor3 > 100)
-    {
-      sensitivity = 4;
-    }
-    else if (sensor3 > (sensor2 + 100) && sensor3 > (sensor4 + 100))
-    {
-      sensitivity = 5;
-    }
-    else if (sensor3 > 100 && sensor4 > 100)
-    {
-      sensitivity = 6;
-    }
-    else if (sensor4 > (sensor3 + 100) && sensor4 > (sensor5 + 100))
-    {
-      sensitivity = 7;
-    }
-    else if (sensor4 > 100 && sensor5 > 100)
-    {
-      sensitivity = 8;
-    }
-    else if (sensor5 > (sensor4 + 100))
-    {
-      sensitivity = 9;
-    }
+  long sensor1 =  cs_4_0.capacitiveSensor(30);
+  long sensor2 =  cs_4_1.capacitiveSensor(30);
+  long sensor3 =  cs_4_2.capacitiveSensor(30);
+  long sensor4 =  cs_4_3.capacitiveSensor(30);
+  long sensor5 =  cs_4_4.capacitiveSensor(30);
+
+  if (sensor1 > (sensor2 + intTreshold))
+  {
+    sensitivity = 1;
+  }
+  else if (sensor1 > intTreshold && sensor2 > intTreshold)
+  {
+    sensitivity = 2;
+  }
+  else if (sensor2 > (sensor1 + intTreshold) && sensor2 > (sensor3 + intTreshold))
+  {
+    sensitivity = 3;
+  }
+  else if (sensor2 > 100 && sensor3 > 100)
+  {
+    sensitivity = 4;
+  }
+  else if (sensor3 > (sensor2 + intTreshold) && sensor3 > (sensor4 + intTreshold))
+  {
+    sensitivity = 5;
+  }
+  else if (sensor3 > intTreshold && sensor4 > intTreshold)
+  {
+    sensitivity = 6;
+  }
+  else if (sensor4 > (sensor3 + intTreshold) && sensor4 > (sensor5 + intTreshold))
+  {
+    sensitivity = 7;
+  }
+  else if (sensor4 > intTreshold && sensor5 > intTreshold)
+  {
+    sensitivity = 8;
+  }
+  else if (sensor5 > (sensor4 + intTreshold))
+  {
+    sensitivity = 9;
+  }
 }
 
 /*
  * LED-SEQUENCES AND ANIMATIONS
  */
 
-void blinkLed(int ledPin){
-  digitalWrite(ledPin, HIGH);
+//Little function to blink a LED
+void blinkLed(int ledPin) {
+  analogWrite(ledPin, map(sensitivity, 1, 9, 50, 255));
   delay(period);
   digitalWrite(ledPin, LOW);
   delay(period);
 }
 
-void startUp(){
-  digitalWrite(6, HIGH);
+//LED sequence played when a new game is set
+void startUp() {
+  analogWrite(LEDPIN0, map(sensitivity, 1, 9, 50, 255));
   delay(period);
-  digitalWrite(7, HIGH);
+  analogWrite(LEDPIN1, map(sensitivity, 1, 9, 50, 255));
   delay(period);
-  digitalWrite(8, HIGH);
+  analogWrite(LEDPIN2, map(sensitivity, 1, 9, 50, 255));
   delay(period);
-  digitalWrite(9, HIGH);
+  analogWrite(LEDPIN3, map(sensitivity, 1, 9, 50, 255));
   delay(period);
   digitalWrite(6, LOW);
   delay(period);
@@ -319,39 +349,42 @@ void startUp(){
   delay(period);
 }
 
-void succes(){
-  digitalWrite(6, HIGH);
+//LED sequence played when a full round has been finished
+void succes() {
+  analogWrite(LEDPIN0, map(sensitivity, 1, 9, 50, 255));
   delay(period);
-  digitalWrite(7, HIGH);
+  analogWrite(LEDPIN1, map(sensitivity, 1, 9, 50, 255));
   delay(period);
-  digitalWrite(8, HIGH);
+  analogWrite(LEDPIN2, map(sensitivity, 1, 9, 50, 255));
   delay(period);
-  digitalWrite(9, HIGH);
-  delay(period*4);
+  analogWrite(LEDPIN3, map(sensitivity, 1, 9, 50, 255));
+  delay(period * 4);
   digitalWrite(6, LOW);
   digitalWrite(7, LOW);
   digitalWrite(8, LOW);
   digitalWrite(9, LOW);
 }
 
-void fout(){
-  digitalWrite(6, HIGH);
-  digitalWrite(7, HIGH);
-  digitalWrite(8, HIGH);
-  digitalWrite(9, HIGH);
+//LED sequence played when a wrong button is touched
+void fout() {
+  analogWrite(LEDPIN0, map(sensitivity, 1, 9, 50, 255));
+  analogWrite(LEDPIN1, map(sensitivity, 1, 9, 50, 255));
+  analogWrite(LEDPIN2, map(sensitivity, 1, 9, 50, 255));
+  analogWrite(LEDPIN3, map(sensitivity, 1, 9, 50, 255));
   delay(period);
   digitalWrite(6, LOW);
   digitalWrite(7, LOW);
   digitalWrite(8, LOW);
   digitalWrite(9, LOW);
   delay(period);
-  digitalWrite(6, HIGH);
-  digitalWrite(7, HIGH);
-  digitalWrite(8, HIGH);
-  digitalWrite(9, HIGH);
+  analogWrite(LEDPIN0, map(sensitivity, 1, 9, 50, 255));
+  analogWrite(LEDPIN1, map(sensitivity, 1, 9, 50, 255));
+  analogWrite(LEDPIN2, map(sensitivity, 1, 9, 50, 255));
+  analogWrite(LEDPIN3, map(sensitivity, 1, 9, 50, 255));
   delay(period);
   digitalWrite(6, LOW);
   digitalWrite(7, LOW);
   digitalWrite(8, LOW);
   digitalWrite(9, LOW);
+  delay(period*2);
 }
