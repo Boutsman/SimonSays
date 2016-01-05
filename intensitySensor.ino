@@ -1,3 +1,8 @@
+/*
+ * @author Robin Fripon
+ * @author Jeroen Timmermans
+*/
+
 #include <CapacitiveSensor.h>
 
 CapacitiveSensor   cs_4_2 = CapacitiveSensor(4,2);
