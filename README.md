@@ -1,5 +1,13 @@
 # SimonSays
 
+author Stijn Boutsen
+author Stef Wynants
+author Robin Fripon
+author Jeroen Timmermans
+author Thomas Aerts
+author Willem Geerts
+author Henning Lakiere
+
 This project was executed by the academic engineering students Electronics and ICT at the University of Hasselt.   A demo-module was made, showcasing printable electronics and OLED technology, for the institute of material research.
 
 Capacitive buttons
