@@ -2,12 +2,6 @@
  * Simon says
  *
  * @author Stijn Boutsen
- * @ author Stef Wynants
- * @author Robin Fripon
- * @author Jeroen Timmermans
- * @author Thomas Aerts
- * @author Willem Geerts
- * @author Henning Lakiere
  * @version 1.1
  * @link Boutsman.be
  *
